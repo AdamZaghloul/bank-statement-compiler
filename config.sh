@@ -1,1 +1,1 @@
-python3 src/main.py config
+python3 main.py config
