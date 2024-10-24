@@ -9,7 +9,7 @@ Takes bank statement csv files as inputs and compiles them into a single csv for
     Account Name - A name to be printed on the output e.g. "Savings Account"
     Account Statement Format - A string of capital letters indicating the order of columns in the input statement:
         N - Ignore/Not relevant
-        U - Unique ID (Required)
+        U - Unique ID (Required if not present in file name)
         D - Date (Required)
         I - Item Notes/Description (Required)
         A - Amount (Required)

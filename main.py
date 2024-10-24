@@ -150,7 +150,7 @@ def process_input_files(output_columns, output_format, account_IDs, account_name
             file_path = os.path.join("input/", filename)
             try:
                 if os.path.isfile(file_path) and filename[-4:] == ".csv":
-                    output_columns = process_single_input_file(file_path, output_columns, output_format, account_IDs, account_names, account_orders, month, year, categories, account_default_factors)
+                    output_columns = process_single_input_file(file_path, filename, output_columns, output_format, account_IDs, account_names, account_orders, month, year, categories, account_default_factors)
                 else:
                     print(f"WARNING: Skipped non-CSV file or directory {file_path}")
             except Exception as e:
@@ -158,12 +158,19 @@ def process_input_files(output_columns, output_format, account_IDs, account_name
     
     return output_columns
         
-def process_single_input_file(file_path, output_columns, output_format, account_IDs, account_names, account_orders, month, year, categories, account_default_factors):
+def process_single_input_file(file_path, filename, output_columns, output_format, account_IDs, account_names, account_orders, month, year, categories, account_default_factors):
     account = None
     account_dict = {}
+
+    #First check if account ID is in filename, if not, check again in ID columns in the file if required
+    for i in range(0, len(account_IDs)):
+        if account_IDs[i] in filename:
+            account = i
+            for k in range(0,len(account_orders[account])):
+                account_dict[account_orders[account][k]] = k
     
     with open(file_path, newline='\n') as csvfile:
-        rows = csv.reader(csvfile, delimiter=',', quotechar='|')
+        rows = csv.reader(csvfile, delimiter=',', quotechar='"')
         for row in rows:
             if account is None:
                 for col in row:
@@ -176,22 +183,25 @@ def process_single_input_file(file_path, output_columns, output_format, account_
             if account is not None:
                 new_row = {}
 
-                #check if date and unique ID are valid using account_dict indices
-                if account_IDs[account] in row[account_dict["U"]] and int(row[account_dict["D"]][4:6]) == month and int(row[account_dict["D"]][0:4]) == year:
-                    #set new_row based on account_dict indices
-                    for i in range(0, len(output_format)-1):
-                        if output_format[i] in account_dict:
-                            if output_format[i] == "D":
-                                new_row[output_format[i]] = datetime.date(int(row[account_dict[output_format[i]]][0:4]), int(row[account_dict[output_format[i]]][4:6]), int(row[account_dict[output_format[i]]][6:])).isoformat()
-                            elif output_format[i] == "A":
-                                new_row[output_format[i]] = float(row[account_dict[output_format[i]]]) * account_default_factors[account]
-                            else:
-                                new_row[output_format[i]] = row[account_dict[output_format[i]]]
-                    new_row["C"], new_row["S"], new_row["F"] = find_row_category(new_row["I"], categories)
-                    new_row["T"] = account_names[account]
-                    
-                    if new_row["C"] != "DELETE":
-                        output_columns.append(new_row)
+                #check if date is valid using account_dict indices
+                date_string = row[account_dict["D"]].replace("-", "")
+
+                if len(date_string) > 6:
+                    if int(date_string[4:6]) == month and int(date_string[0:4]) == year:
+                        #set new_row based on account_dict indices
+                        for i in range(0, len(output_format)-1):
+                            if output_format[i] in account_dict:
+                                if output_format[i] == "D":
+                                    new_row[output_format[i]] = datetime.date(int(date_string[0:4]), int(date_string[4:6]), int(date_string[6:])).isoformat()
+                                elif output_format[i] == "A":
+                                    new_row[output_format[i]] = float(row[account_dict[output_format[i]]]) * account_default_factors[account]
+                                else:
+                                    new_row[output_format[i]] = row[account_dict[output_format[i]]]
+                        new_row["C"], new_row["S"], new_row["F"] = find_row_category(new_row["I"], categories)
+                        new_row["T"] = account_names[account]
+                        
+                        if new_row["C"] != "DELETE":
+                            output_columns.append(new_row)
     if account is None:
         print(f"WARNING: Could not identify account in file: {file_path}. File not processed.")
     
